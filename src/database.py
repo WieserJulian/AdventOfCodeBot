@@ -16,8 +16,8 @@ class DataBase:
 
     def add_user(self, user: User):
         name = "users"
-        self.__create_table__(name, "id, name, reminder")
-        self.cur.execute(f'INSERT INTO {name} VALUES(?,?, ?)',(user.id, user.name, user.reminder))
+        self.__create_table__(name, "id, name, adventname, reminder")
+        self.cur.execute(f'INSERT INTO {name} VALUES(?,?, ?, ?)',(user.id, user.name,user.advent_of_code_name, user.reminder))
         self.con.commit()
 
     def add_message(self, message: Message):
@@ -27,10 +27,17 @@ class DataBase:
         self.cur.execute(f'INSERT INTO {name} VALUES(?,?, FALSE)',(message.id, message.message))
         self.con.commit()
 
+    def add_group(self, message: Message):
+        logging.info("[DATABASE] ", message)
+        name = "messages"
+        self.__create_table__(name, "id, message, sended")
+        self.cur.execute(f'INSERT INTO {name} VALUES(?,?, FALSE)',(message.id, message.message))
+        self.con.commit()
+
     def add_servers(self, server: Server):
         name = "servers"
-        self.__create_table__(name, "id, channel")
-        self.cur.execute(f'INSERT INTO {name} VALUES(?,?)',(server.id, server.channel))
+        self.__create_table__(name, "id, channel, leader_api")
+        self.cur.execute(f'INSERT INTO {name} VALUES(?,?,?)',(server.id, server.channel,server.leader_api))
         self.con.commit()
 
 
@@ -55,12 +62,27 @@ class DataBase:
         except Exception as ex:
             return False
 
+    def check_server_api(self, server: Server):
+        name = "servers"
+        try:
+            return self.cur.execute(f'SELECT count(*) FROM {name} WHERE id=? AND channel=? and leader_api is empty', (server.id,server.channel)).fetchone()[0] != 0
+        except Exception as ex:
+            return False
+
     def get_last_message(self):
         name = "messages"
         res = self.cur.execute(f'SELECT message FROM {name} WHERE sended = FALSE').fetchall()
         self.cur.execute(f'Update {name} set sended = TRUE where sended = FALSE')
         self.con.commit()
         return [r[0] for r in res]
+
+
+    def get_api_keys_servers(self):
+        name = "servers"
+        res = self.cur.execute(f'SELECT leader_api, id FROM {name} WHERE leader_api is not empty').fetchall()
+        return [list(r) for r in res]
+
+
 
     def get_send_channels(self):
         name = "servers"
@@ -89,6 +111,11 @@ class DataBase:
         self.cur.execute(f'Update {name} set reminder = ? where id = ?', (not value, id))
         self.con.commit()
         return not value
+
+    def update_servers_api(self, server):
+        name = "servers"
+        self.cur.execute(f'Update {name} set leader_api = ? where id = ?', (server.leader_api, server.id))
+        self.con.commit()
 
 
     def __create_table__(self, name, columns):

@@ -15,3 +15,6 @@ def gen_embed(bot: interactions.Client, message):
                 embed.add_field("FIELD EXTENDING FAILED",
                                 "**[VISIT WEBSITE TO WATCH THIS COLOSSUS](https://adventofcode.com/)**")
     return embed
+
+def gen_leaderboard(message):
+    pass
