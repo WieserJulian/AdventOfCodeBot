@@ -3,7 +3,7 @@ import math
 
 import requests
 
-from src.message import Message
+from src.registerd.message import Message
 
 
 def main_page_converter(base_url, database, year):
