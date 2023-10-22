@@ -57,6 +57,21 @@ async def leaderboard(ctx: interactions.SlashContext):
     await paginator.send(ctx)
 
 
+@interactions.slash_command(name="resend_message", description="Sets this channel to the publish channel")
+@interactions.slash_option("day", description="The day",
+                           required=True, opt_type=interactions.OptionType.INTEGER)
+@interactions.slash_default_member_permission(permission=interactions.Permissions.ADMINISTRATOR)
+async def resend_message(ctx: interactions.SlashContext, day: int):
+    server = Server(str(ctx.guild.id), str(ctx.channel.id))
+    message = database.get_message("{:04d}{:02d}".format(year, day))
+    if database.check_server(server):
+        if message is not None:
+            await ctx.send(embeds=gen_embed(bot, message))
+            return
+        await ctx.send("No message has been found for that day", ephemeral=True)
+    await ctx.send("This server has not been registered a publishing channel", ephemeral=True)
+
+
 @interactions.slash_command(name="publish_channel", description="Sets this channel to the publish channel")
 @interactions.slash_default_member_permission(permission=interactions.Permissions.ADMINISTRATOR)
 async def set_publish_channel(ctx: interactions.SlashContext):
@@ -171,6 +186,8 @@ async def on_startup():
     daily.start()
     update_scoreboard.start()
     print("Started Tasks\n" + "=" * 50)
+    await reload_page()
+    await daily()
     await update_scoreboard()
 
 

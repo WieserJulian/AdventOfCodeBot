@@ -75,6 +75,10 @@ class DataBase:
         self.con.commit()
         return [r[0] for r in res]
 
+    def get_message(self, id):
+        res = self.cur.execute(f'SELECT message FROM MESSAGE WHERE day_id = ?', (id, )).fetchone()
+        return res[0]
+
     def get_api_keys_servers(self):
         res = self.cur.execute('SELECT api_id, guild_id FROM SERVER WHERE api_id is not null').fetchall()
         return [list(r) for r in res]
