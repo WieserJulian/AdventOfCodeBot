@@ -30,7 +30,7 @@ year = today.year
 async def subscribe_to_adventofcode(ctx: interactions.SlashContext, adventname: str, reminder: bool = False):
     if not database.check_user(str(ctx.author.id)):
         database.add_user(User(str(ctx.author.id), str(ctx.author.display_name), str(adventname), reminder))
-        await ctx.send("Congratulations you have been selected", ephemeral=True)
+        await ctx.send("Congratulations you have been subscribed", ephemeral=True)
         return
     await ctx.send("Your already registered for this Event\nIf you want to change the reminder user /reminder",
                    ephemeral=True)
