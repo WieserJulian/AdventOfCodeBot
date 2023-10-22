@@ -186,6 +186,7 @@ async def update_scoreboard():
 
 @interactions.listen()
 async def on_error(error: interactions.api.events.Error):
+    print(f"```\n{error.source}\n{error.error}\n```")
     logging.error(f"```\n{error.source}\n{error.error}\n```")
 
 @interactions.listen()
@@ -196,9 +197,6 @@ async def on_startup():
     daily.start()
     update_scoreboard.start()
     print("Started Tasks\n" + "=" * 50)
-    await reload_page()
-    await daily()
-    await update_scoreboard()
 
 
 while True:
