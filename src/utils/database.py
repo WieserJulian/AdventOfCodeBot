@@ -39,8 +39,8 @@ class DataBase:
 
     def add_scoreboard(self, scoreboard: ScoreBoard):
         self.cur.execute(f'INSERT INTO SCOREBOARD VALUES(?,?,?, ?, ?)',
-                         (scoreboard.id, scoreboard.owner_id, scoreboard.json_content,
-                          scoreboard.last_refresh, scoreboard.cookie_value))
+                         (scoreboard.id, scoreboard.cookie_value, scoreboard.owner_id,
+                          scoreboard.json_content, scoreboard.last_refresh))
         self.con.commit()
 
     def check_message_exists(self, id):
@@ -64,8 +64,8 @@ class DataBase:
 
     def check_server_api(self, server: Server):
         try:
-            return self.cur.execute(f'SELECT count(api_id) FROM SERVER WHERE guild_id=? AND channel_id=?',
-                                    (server.id, server.channel)).fetchone()[0] != 0
+            res = self.cur.execute(f'SELECT api_id FROM SERVER WHERE guild_id=? AND channel_id=?',(server.id, server.channel)).fetchone()
+            return False if res is None or res[0] == "" else True
         except Exception as ex:
             return False
 
