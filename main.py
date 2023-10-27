@@ -1,12 +1,14 @@
 import datetime
+try:
+    import json
+except ImportError:
+    import simplejson as json
 import logging
 import os
 
 import interactions
 import requests
 from dotenv import load_dotenv
-from pandas._libs import json
-
 from src.utils.database import DataBase
 from src.utils.embeds import gen_embed, gen_leaderboard
 from src.registerd.servers import Server
