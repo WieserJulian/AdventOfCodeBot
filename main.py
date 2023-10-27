@@ -1,7 +1,7 @@
 import datetime
 try:
     import json
-except ImportError:
+except Exception:
     import simplejson as json
 import logging
 import os
