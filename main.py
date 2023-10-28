@@ -1,8 +1,5 @@
 import datetime
-try:
-    import json
-except Exception:
-    import simplejson as json
+import json
 import logging
 import os
 
