@@ -69,7 +69,7 @@ async def leaderboard(ctx: interactions.SlashContext):
 async def resend_message(ctx: interactions.SlashContext, day: int):
     server = Server(str(ctx.guild.id), str(ctx.channel.id))
     message = database.get_message("{:04d}{:02d}".format(year, day))
-    if database.check_server(server):
+    if database.check_server_channel(server):
         if message is not None:
             await ctx.send(embeds=gen_embed(bot, message))
             return
@@ -82,7 +82,7 @@ async def resend_message(ctx: interactions.SlashContext, day: int):
 @interactions.slash_default_member_permission(permission=interactions.Permissions.ADMINISTRATOR)
 async def set_publish_channel(ctx: interactions.SlashContext):
     server = Server(str(ctx.guild.id), str(ctx.channel.id))
-    if not database.check_server(server):
+    if not database.check_server_channel(server):
         database.add_servers(server)
         await ctx.send("This channel has been set to be a publish channel", ephemeral=True)
         return
@@ -103,7 +103,7 @@ async def delete_leaderboard(ctx: interactions.SlashContext):
             return
         await ctx.send("There was no leaderboard. You might want to create one? (/set_leaderboard)", ephemeral=True)
         return
-    await ctx.send("This channel has not been registered a publishing channel", ephemeral=True)
+    await ctx.send("This server has not been registered", ephemeral=True)
 
 @interactions.slash_command(name="set_leaderboard", description="Sets this channel to the publish channel")
 @interactions.slash_option("owner_id", description="The number after /view/<number>",
@@ -128,14 +128,14 @@ async def set_leaderboard(ctx: interactions.SlashContext, owner_id: str, cookie:
             return
         await ctx.send("There is already an private leaderboard registered", ephemeral=True)
         return
-    await ctx.send("This channel has not been registered a publishing channel", ephemeral=True)
+    await ctx.send("This server has not been registered create an new publish channel", ephemeral=True)
 
 
 @interactions.slash_command(name="remove_publish", description="Remove publishing channel")
 @interactions.slash_default_member_permission(permission=interactions.Permissions.ADMINISTRATOR)
 async def unset_publish_channel(ctx: interactions.SlashContext):
     server = Server(str(ctx.guild.id), str(ctx.channel.id))
-    if database.check_server(server):
+    if database.check_server_channel(server):
         database.del_server(Server(str(ctx.guild.id), str(ctx.channel.id)))
         await ctx.send("This is no longer a publish channel", ephemeral=True)
         return

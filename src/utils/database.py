@@ -55,17 +55,24 @@ class DataBase:
         except Exception as ex:
             return False
 
-    def check_server(self, server: Server):
+    def check_server_channel(self, server: Server):
         try:
             return self.cur.execute(f'SELECT count(*) FROM SERVER WHERE guild_id=? AND channel_id=?',
                                     (server.id, server.channel)).fetchone()[0] != 0
         except Exception as ex:
             return False
 
+    def check_server(self, server: Server):
+        try:
+            return self.cur.execute(f'SELECT count(*) FROM SERVER WHERE guild_id=? ',
+                                    (server.id, )).fetchone()[0] != 0
+        except Exception as ex:
+            return False
+
     def check_server_api(self, server: Server):
         try:
-            res = self.cur.execute(f'SELECT api_id FROM SERVER WHERE guild_id=? AND channel_id=?',(server.id, server.channel)).fetchone()
-            return False if res is None or res[0] == "" else True
+            res = self.cur.execute(f'SELECT api_id FROM SERVER WHERE guild_id=? ',(server.id, )).fetchone()
+            return False if res is None or res[0] == None else True
         except Exception as ex:
             return False
 
