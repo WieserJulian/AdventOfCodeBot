@@ -74,6 +74,7 @@ async def resend_message(ctx: interactions.SlashContext, day: int):
             await ctx.send(embeds=gen_embed(bot, message))
             return
         await ctx.send("No message has been found for that day", ephemeral=True)
+        return
     await ctx.send("This server has not been registered a publishing channel", ephemeral=True)
 
 
@@ -196,7 +197,9 @@ async def on_startup():
     daily.start()
     update_scoreboard.start()
     print("Started Tasks\n" + "=" * 50)
-
+    await reload_page()
+    await daily()
+    await update_scoreboard()
 
 while True:
     try:

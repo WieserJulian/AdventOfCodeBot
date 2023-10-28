@@ -77,7 +77,10 @@ class DataBase:
 
     def get_message(self, id):
         res = self.cur.execute(f'SELECT message FROM MESSAGE WHERE day_id = ?', (id, )).fetchone()
-        return res[0]
+        if res is not None:
+            return res[0]
+        else:
+            return None
 
     def get_api_keys_servers(self):
         res = self.cur.execute('SELECT api_id, guild_id FROM SERVER WHERE api_id is not null').fetchall()
