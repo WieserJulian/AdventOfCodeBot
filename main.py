@@ -197,9 +197,6 @@ async def on_startup():
     daily.start()
     update_scoreboard.start()
     print("Started Tasks\n" + "=" * 50)
-    await reload_page()
-    await daily()
-    await update_scoreboard()
 
 while True:
     try:
