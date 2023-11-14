@@ -12,6 +12,7 @@ from src.registerd.servers import Server
 from src.scoreboard.scoreboard import ScoreBoard
 from src.utils.text_converter import main_page_converter
 from src.registerd.user import User
+from src.utils.alerts import AlertHandler
 
 bot = interactions.Client(send_command_tracebacks=False)
 database = DataBase()
@@ -21,8 +22,19 @@ base_url = "https://adventofcode.com"
 today = datetime.date.today()
 year = today.year
 
+level = logging.WARN
+logging.basicConfig(filename='adventofcode.log', encoding='utf-8')
+logging.getLogger("requests").disabled = True
+logger = logging.getLogger()
+logger.setLevel(level)
+formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 
-logging.basicConfig(filename='adventofcode.log', encoding='utf-8', level=logging.INFO)
+alertHandler = AlertHandler(url=os.getenv("NTFY-URL"))
+alertHandler.setLevel(level)
+alertHandler.setFormatter(formatter)
+logger.addHandler(alertHandler)
+
+
 @interactions.slash_command(name="subscribe", description="Subscribe for reminder for")
 @interactions.slash_option("adventname", description="Your advent of Code Name (You find it under settings)",
                            required=True, opt_type=interactions.OptionType.STRING)
@@ -55,8 +67,9 @@ async def leaderboard(ctx: interactions.SlashContext):
     if database.check_server_api(server):
         api_id = database.get_api_id_by_guild_id(str(ctx.guild.id))
         content, last_changed = database.get_scoreboard_and_changed(api_id)
-        content_json= json.loads(content)
-        paginator = gen_leaderboard(content_json, database, client=bot, discord_id=str(ctx.author.id), last_changed=last_changed)
+        content_json = json.loads(content)
+        paginator = gen_leaderboard(content_json, database, client=bot, discord_id=str(ctx.author.id),
+                                    last_changed=last_changed)
         await paginator.send(ctx)
         return
     await ctx.send("There was no leaderboard. You might want to ask your admin to create one", ephemeral=True)
@@ -105,6 +118,7 @@ async def delete_leaderboard(ctx: interactions.SlashContext):
         return
     await ctx.send("This server has not been registered", ephemeral=True)
 
+
 @interactions.slash_command(name="set_leaderboard", description="Sets this channel to the publish channel")
 @interactions.slash_option("owner_id", description="The number after /view/<number>",
                            required=True, opt_type=interactions.OptionType.STRING)
@@ -119,10 +133,12 @@ async def set_leaderboard(ctx: interactions.SlashContext, owner_id: str, cookie:
             s = requests.session()
             cookie_obj = requests.cookies.create_cookie(domain=".adventofcode.com", name="session", value=cookie)
             s.cookies.set_cookie(cookie_obj)
-            content = s.get(base_url + r"/{}/leaderboard/private/view/{}.json".format(str(year), str(owner_id))).content.decode()
+            content = s.get(
+                base_url + r"/{}/leaderboard/private/view/{}.json".format(str(year), str(owner_id))).content.decode()
             content_json = json.loads(content)
             database.add_scoreboard(
-                ScoreBoard(owner_id, datetime.datetime.now().strftime("%Y.%m.%d %H:%M"), owner_id=content_json['owner_id'],
+                ScoreBoard(owner_id, datetime.datetime.now().strftime("%Y.%m.%d %H:%M"),
+                           owner_id=content_json['owner_id'],
                            json_content=content, cookie_value=cookie))
             await ctx.send("Your leaderboard has been set", ephemeral=True)
             return
@@ -178,16 +194,20 @@ async def update_scoreboard():
         s = requests.session()
         cookie_obj = requests.cookies.create_cookie(domain=".adventofcode.com", name="session", value=cookie_value)
         s.cookies.set_cookie(cookie_obj)
-        content = s.get(base_url + r"/{}/leaderboard/private/view/{}.json".format(str(year), str(owner_id))).content.decode()
+        content = s.get(
+            base_url + r"/{}/leaderboard/private/view/{}.json".format(str(year), str(owner_id))).content.decode()
         content_json = json.loads(content)
         database.update_scoreboard(ScoreBoard(api_id, datetime.datetime.now().strftime("%Y.%m.%d %H:%M"),
-                                              owner_id=content_json['owner_id'], json_content=content, cookie_value=None))
+                                              owner_id=content_json['owner_id'], json_content=content,
+                                              cookie_value=None))
     pass
+
 
 @interactions.listen()
 async def on_error(error: interactions.api.events.Error):
     print(f"```\n{error.source}\n{error.error}\n```")
     logging.error(f"```\n{error.source}\n{error.error}\n```")
+
 
 @interactions.listen()
 async def on_startup():
@@ -198,8 +218,14 @@ async def on_startup():
     update_scoreboard.start()
     print("Started Tasks\n" + "=" * 50)
 
-while True:
+
+def main():
     try:
         bot.start(os.getenv("BOT_TOKEN"))
-    except:
-        pass
+    except Exception as ex:
+        logger.critical("Restart Bot", ex)
+        main()
+
+
+if __name__ == '__main__':
+    main()
