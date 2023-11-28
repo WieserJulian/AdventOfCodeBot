@@ -72,7 +72,11 @@ class DataBase:
     def check_server_api(self, server: Server):
         try:
             res = self.cur.execute(f'SELECT api_id FROM SERVER WHERE guild_id=?',(server.id, )).fetchone()
-            return False if res is None or res[0] is None else True
+            if res is None:
+                return False
+            if res[0] is None:
+                return False
+            return True
         except Exception as ex:
             return False
 
