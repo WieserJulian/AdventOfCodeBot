@@ -45,20 +45,35 @@ class DataBase:
 
     def check_message_exists(self, id):
         try:
-            return self.cur.execute(f'SELECT count(*) FROM MESSAGE WHERE day_id=?', (id,)).fetchone()[0] != 0
+            res = self.cur.execute(f'SELECT count(*) FROM MESSAGE WHERE day_id=?', (id,)).fetchone()
+            if res is None:
+                return False
+            if res[0] is None:
+                return False
+            return res[0] != 0
         except Exception as ex:
             return False
 
     def check_user(self, id):
         try:
-            return self.cur.execute(f'SELECT count(*) FROM USER WHERE discord_id=?', (id,)).fetchone()[0] != 0
+            res = self.cur.execute(f'SELECT count(*) FROM USER WHERE discord_id=?', (id,)).fetchone()
+            if res is None:
+                return False
+            if res[0] is None:
+                return False
+            return res[0] != 0
         except Exception as ex:
             return False
 
     def check_server_channel(self, server: Server):
         try:
-            return self.cur.execute(f'SELECT count(*) FROM SERVER WHERE guild_id=? AND channel_id=?',
-                                    (server.id, server.channel)).fetchone()[0] != 0
+            res = self.cur.execute(f'SELECT count(*) FROM SERVER WHERE guild_id=? AND channel_id=?',
+                                    (server.id, server.channel)).fetchone()
+            if res is None:
+                return False
+            if res[0] is None:
+                return False
+            return res[0] != 0
         except Exception as ex:
             return False
 
