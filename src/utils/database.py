@@ -163,8 +163,8 @@ class DataBase:
         self.con.commit()
 
     def update_scoreboard(self, scoreboard: ScoreBoard):
-        self.cur.execute(f'Update SCOREBOARD set json_content = ? WHERE api_id = ?',
-                         (scoreboard.json_content, scoreboard.id))
+        self.cur.execute(f'Update SCOREBOARD set json_content = ?, last_refresh=? WHERE api_id = ?',
+                         (scoreboard.json_content,scoreboard.last_refresh, scoreboard.id))
         self.con.commit()
 
     def __create_table__(self, name, columns):

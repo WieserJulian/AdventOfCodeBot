@@ -60,4 +60,4 @@ def _generate_fields_by_json(leaderboard):
             stars += "⭐" if count == 2 else "✨" if count == 1 else "✹"
         stars += "✹" * (25 - len(stars))
         important.append([members[member]['local_score'], members[member]['name'], stars])
-    return sorted(important, key=lambda x: x[0])
+    return sorted(important, key=lambda x: -x[0])
