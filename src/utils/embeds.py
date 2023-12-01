@@ -1,9 +1,14 @@
+import datetime
+
 import interactions
 from interactions.ext.paginators import Paginator
 
+today = datetime.date.today()
+year = today.year
 
 def gen_embed(bot: interactions.Client, message):
     embed = interactions.Embed("Continue: ...")
+    embed.url = "https://adventofcode.com/{}/day/{}".format(year, message.split("Day ")[1][0])
     for field in message.split("<field>"):
         if field.startswith("<author>"):
             embed.set_author(bot.user.username, icon_url=bot.user.avatar.url, url=field.split("<author>")[1])
@@ -36,7 +41,7 @@ def gen_leaderboard(message, database, client, discord_id, last_changed):
     embeds = []
     embed_footer = interactions.EmbedFooter(text=f'Last time refreshed: {last_changed} will updated all 30min')
     embed = interactions.Embed("Leaderboard (1-10)", description=place, footer=embed_footer)
-
+    embed.url = "https://adventofcode.com/{}/leaderboard/private/view/{}".format(year, message['owner_id'])
     for index, field in enumerate(fields):
         mention = database.get_nickname_by_adventname(field[1])
         add = "" if mention == "" else '\t@' + mention

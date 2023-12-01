@@ -4,8 +4,10 @@ import logging
 import os
 
 import interactions
+from interactions.ext import prefixed_commands
 import requests
 from dotenv import load_dotenv
+from interactions.ext.prefixed_commands import prefixed_command, PrefixedHelpCommand
 
 from src.registerd.message import Message
 from src.utils.database import DataBase
@@ -76,6 +78,19 @@ async def leaderboard(ctx: interactions.SlashContext):
             await paginator.send(ctx)
             return
     await ctx.send("There was no leaderboard. You might want to ask your admin to create one", ephemeral=True)
+
+
+@interactions.slash_command(name="help", description="Shows you how to start")
+async def help_(ctx: interactions.SlashContext):
+    embed = interactions.Embed()
+    embed.title = "Help"
+    embed.url = "https://adventofcode.com/" + str(year)
+    embed.add_field("Step 1", "Go to [AdventOfCodeWebsite](https://adventofcode.com/2023)\nRegister there under Login")
+    embed.add_field("Step 2", "Under Settings in the website you find your Username\nNow Subscribe by the command:\n"
+                              "/subscribe adventname: YOURUSERNAME")
+    embed.add_field("Step 3", "Now ask your AdventOfCode Manager on the Server for the private Leaderboard code")
+    embed.add_field("Step 4", "Have fun and a twinklie time")
+    await ctx.send(embeds=embed, ephemeral=True)
 
 
 @interactions.slash_command(name="resend_message", description="Sets this channel to the publish channel")
