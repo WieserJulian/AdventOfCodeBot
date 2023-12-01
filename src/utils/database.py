@@ -114,6 +114,8 @@ class DataBase:
 
     def get_api_id_by_guild_id(self, id):
         res = self.cur.execute('SELECT api_id FROM SERVER WHERE guild_id = ?', (str(id),)).fetchone()
+        if res is None:
+            return None
         return res[0]
 
     def get_owner_id(self, id):

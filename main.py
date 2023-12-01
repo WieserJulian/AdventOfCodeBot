@@ -68,12 +68,13 @@ async def leaderboard(ctx: interactions.SlashContext):
     server = Server(str(ctx.guild.id), str(ctx.channel.id), 0)
     if database.check_server_api(server):
         api_id = database.get_api_id_by_guild_id(str(ctx.guild.id))
-        content, last_changed = database.get_scoreboard_and_changed(api_id)
-        content_json = json.loads(content)
-        paginator = gen_leaderboard(content_json, database, client=bot, discord_id=str(ctx.author.id),
-                                    last_changed=last_changed)
-        await paginator.send(ctx)
-        return
+        if api_id is not None:
+            content, last_changed = database.get_scoreboard_and_changed(api_id)
+            content_json = json.loads(content)
+            paginator = gen_leaderboard(content_json, database, client=bot, discord_id=str(ctx.author.id),
+                                        last_changed=last_changed)
+            await paginator.send(ctx)
+            return
     await ctx.send("There was no leaderboard. You might want to ask your admin to create one", ephemeral=True)
 
 
