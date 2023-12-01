@@ -35,8 +35,7 @@ def main_page_converter(base_url, database, year):
                         cleaned = para
                     if para != "":
                         message.append(cleaned)
-                database.add_message(Message("{:04d}{:02d}".format(year, 0), "<field>".join(message)))
-                return
+                return "<field>".join(message), "0"
         main_part = main_part.split('<a aria-label=')[1:len(main_part)]
         links = []
         for line in main_part:
@@ -162,4 +161,4 @@ def main_page_converter(base_url, database, year):
                     else:
                         message = "<field>".join(cleaned_text)
                     # pass
-                    database.add_message(Message("{:04d}{:02d}".format(year, day), message))
+                    return message, day
