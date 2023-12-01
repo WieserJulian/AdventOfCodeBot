@@ -9,9 +9,10 @@ import requests
 from dotenv import load_dotenv
 from interactions.ext.prefixed_commands import prefixed_command, PrefixedHelpCommand
 
+from src.registerd.hint import Hint
 from src.registerd.message import Message
 from src.utils.database import DataBase
-from src.utils.embeds import gen_embed, gen_leaderboard, gen_help
+from src.utils.embeds import gen_embed, gen_leaderboard, gen_help, gen_hint
 from src.registerd.servers import Server
 from src.scoreboard.scoreboard import ScoreBoard
 from src.utils.text_converter import main_page_converter
@@ -84,10 +85,60 @@ async def leaderboard(ctx: interactions.SlashContext):
 async def help_(ctx: interactions.SlashContext):
     await ctx.send(embeds=gen_help(), ephemeral=True)
 
+
 @interactions.slash_command(name="show_help_permanently", description="Shows you how to start")
 @interactions.slash_default_member_permission(permission=interactions.Permissions.ADMINISTRATOR)
 async def show_help_permanently(ctx: interactions.SlashContext):
     await ctx.send(embeds=gen_help())
+
+
+@interactions.slash_command(name="add_hint", description="Add Hint to your server for this year")
+@interactions.slash_option("day_hint", description="The day", required=True, opt_type=interactions.OptionType.INTEGER)
+@interactions.slash_option("hint1", description="Hint 1", required=True, opt_type=interactions.OptionType.STRING)
+@interactions.slash_option("hint2", description="Hint 2", required=True, opt_type=interactions.OptionType.STRING)
+@interactions.slash_default_member_permission(permission=interactions.Permissions.ADMINISTRATOR)
+async def add_hint(ctx: interactions.SlashContext, day_hint: int, hint1: str, hint2: str):
+    if not database.check_hints_exists(str(ctx.guild.id), "{:04d}{:02d}".format(year, day_hint)):
+        hint = Hint(str(ctx.guild.id), "{:04d}{:02d}".format(year, day_hint), hint1, hint2)
+        database.add_hints(hint)
+        await ctx.send("Hint has been added for Day {}".format(day_hint), ephemeral=True)
+        return
+    await ctx.send("There has already been Hints for Day {} => Try update_hint".format(day_hint), ephemeral=True)
+
+
+@interactions.slash_command(name="update_hint", description="Updat Hint to your server for this year")
+@interactions.slash_option("day_hint", description="The day", required=True, opt_type=interactions.OptionType.INTEGER)
+@interactions.slash_option("hint1", description="Hint 1", required=True, opt_type=interactions.OptionType.STRING)
+@interactions.slash_option("hint2", description="Hint 2", required=True, opt_type=interactions.OptionType.STRING)
+@interactions.slash_default_member_permission(permission=interactions.Permissions.ADMINISTRATOR)
+async def update_hint(ctx: interactions.SlashContext, day_hint: int, hint1: str, hint2: str):
+    if database.check_hints_exists(ctx.guild.id, "{:04d}{:02d}".format(year, day_hint)):
+        hint = Hint(str(ctx.guild.id), "{:04d}{:02d}".format(year, day_hint), hint1, hint2)
+        database.update_hint(hint)
+        await ctx.send("Hint has been updated for Day {}".format(day_hint), ephemeral=True)
+        return
+    await ctx.send("There were no Hints for Day {} => Try add_hint".format(day_hint), ephemeral=True)
+
+
+@interactions.slash_command(name="delete_hint", description="Delete Hint from your server for this year")
+@interactions.slash_option("day_hint", description="The day", required=True, opt_type=interactions.OptionType.INTEGER)
+@interactions.slash_default_member_permission(permission=interactions.Permissions.ADMINISTRATOR)
+async def delete_hint(ctx: interactions.SlashContext, day_hint: int):
+    if database.check_hints_exists(ctx.guild.id, "{:04d}{:02d}".format(year, day_hint)):
+        database.del_hint(str(ctx.guild.id), "{:04d}{:02d}".format(year, day_hint))
+        await ctx.send("Hint has been deleted for Day {}".format(day_hint), ephemeral=True)
+        return
+    await ctx.send("There were no Hints for Day {} => Try add_hint".format(day_hint), ephemeral=True)
+
+
+@interactions.slash_command(name="hint", description="Get hint from server")
+@interactions.slash_option("day_hint", description="The day", required=True, opt_type=interactions.OptionType.INTEGER)
+async def hint(ctx: interactions.SlashContext, day_hint: int):
+    if database.check_hints_exists(str(ctx.guild.id), "{:04d}{:02d}".format(year, day_hint)):
+        puzzles = database.get_hint(str(ctx.guild.id), "{:04d}{:02d}".format(year, day_hint))
+        await ctx.send(embed=gen_hint(puzzles, day_hint), ephemeral=True)
+        return
+    await ctx.send("There were no Hints for Day {}".format(day_hint), ephemeral=True)
 
 
 @interactions.slash_command(name="resend_message", description="Sets this channel to the publish channel")

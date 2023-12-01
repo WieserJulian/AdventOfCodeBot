@@ -6,6 +6,15 @@ from interactions.ext.paginators import Paginator
 today = datetime.date.today()
 year = today.year
 
+
+def gen_hint(puzzle, give_day):
+    embed = interactions.Embed()
+    embed.title = "Hint for Day {}".format(give_day)
+    for i, puz in enumerate(puzzle):
+        embed.add_field("Hint {}:".format(i + 1), "{}".format(puz))
+    return embed
+
+
 def gen_help():
     embed = interactions.Embed()
     embed.title = "Help"
@@ -17,9 +26,10 @@ def gen_help():
     embed.add_field("Step 4", "Have fun and a twinklie time")
     return embed
 
+
 def gen_embed(bot: interactions.Client, message):
     embed = interactions.Embed("Continue: ...")
-    embed.url = "https://adventofcode.com/{}/day/{}".format(year, message.split("Day ")[1][0])
+    embed.url = "https://adventofcode.com/{}/day/{}".format(year, message.split("Day ")[1].split(":")[0])
     for field in message.split("<field>"):
         if field.startswith("<author>"):
             embed.set_author(bot.user.username, icon_url=bot.user.avatar.url, url=field.split("<author>")[1])

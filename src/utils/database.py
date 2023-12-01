@@ -1,5 +1,6 @@
 import sqlite3
 
+from src.registerd.hint import Hint
 from src.registerd.message import Message
 from src.registerd.servers import Server
 from src.registerd.user import User
@@ -19,7 +20,8 @@ class DataBase:
             'USER': "discord_id, nickname, adventname, shouldremind",
             'MESSAGE': "day_id, message, isSent",
             'SERVER': "guild_id, channel_id, api_id",
-            'SCOREBOARD': "api_id, cookie_value, owner_id, json_content, last_refresh"
+            'SCOREBOARD': "api_id, cookie_value, owner_id, json_content, last_refresh",
+            'HINT': "guild_id, day_id, puzzle1, puzzle2"
         }
         for layout in database_layout:
             self.__create_table__(layout, database_layout[layout])
@@ -43,9 +45,25 @@ class DataBase:
                           scoreboard.json_content, scoreboard.last_refresh))
         self.con.commit()
 
+    def add_hints(self, hint: Hint):
+        self.cur.execute(f'INSERT INTO HINT VALUES(?,?,?,?)',
+                         (hint.guild_id, hint.day_id, hint.puzzle1, hint.puzzle2))
+        self.con.commit()
+
     def check_message_exists(self, id):
         try:
             res = self.cur.execute(f'SELECT count(*) FROM MESSAGE WHERE day_id=?', (id,)).fetchone()
+            if res is None:
+                return False
+            if res[0] is None:
+                return False
+            return res[0] != 0
+        except Exception as ex:
+            return False
+
+    def check_hints_exists(self, guild_id, day_id):
+        try:
+            res = self.cur.execute(f'SELECT count(*) FROM HINT WHERE day_id=? and guild_id=?', (day_id, guild_id)).fetchone()
             if res is None:
                 return False
             if res[0] is None:
@@ -118,6 +136,12 @@ class DataBase:
             return None
         return res[0]
 
+    def get_hint(self, guild_id, day_id):
+        res = self.cur.execute('SELECT puzzle1, puzzle2 FROM HINT WHERE guild_id = ? and day_id=?', (guild_id, day_id)).fetchone()
+        if res is None:
+            return None
+        return res
+
     def get_owner_id(self, id):
         res = self.cur.execute('SELECT owner_id, cookie_value FROM SCOREBOARD WHERE api_id = ?', (str(id),)).fetchone()
         return tuple(res)
@@ -154,6 +178,10 @@ class DataBase:
         self.cur.execute('DELETE FROM SCOREBOARD WHERE api_id=? ', (api_id,))
         self.con.commit()
 
+    def del_hint(self,guild_id, day_id):
+        self.cur.execute('DELETE FROM HINT WHERE guild_id=? and day_id=? ', (guild_id,day_id))
+        self.con.commit()
+
     def toggle_reminder(self, id):
         value = self.cur.execute(f'SELECT shouldremind FROM USER WHERE discord_id = ?', (id,)).fetchone()[0]
         self.cur.execute(f'Update USER set shouldremind = ? where discord_id = ?', (not value, id))
@@ -167,6 +195,11 @@ class DataBase:
     def update_scoreboard(self, scoreboard: ScoreBoard):
         self.cur.execute(f'Update SCOREBOARD set json_content = ?, last_refresh=? WHERE api_id = ?',
                          (scoreboard.json_content,scoreboard.last_refresh, scoreboard.id))
+        self.con.commit()
+
+    def update_hint(self, hint: Hint):
+        self.cur.execute(f'Update HINT set puzzle1, puzzle2 WHERE  guild_id=? and day_id=?',
+                         (hint.puzzle1,hint.puzzle2, hint.guild_id, hint.day_id))
         self.con.commit()
 
     def __create_table__(self, name, columns):
