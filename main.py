@@ -11,7 +11,7 @@ from interactions.ext.prefixed_commands import prefixed_command, PrefixedHelpCom
 
 from src.registerd.message import Message
 from src.utils.database import DataBase
-from src.utils.embeds import gen_embed, gen_leaderboard
+from src.utils.embeds import gen_embed, gen_leaderboard, gen_help
 from src.registerd.servers import Server
 from src.scoreboard.scoreboard import ScoreBoard
 from src.utils.text_converter import main_page_converter
@@ -82,15 +82,12 @@ async def leaderboard(ctx: interactions.SlashContext):
 
 @interactions.slash_command(name="help", description="Shows you how to start")
 async def help_(ctx: interactions.SlashContext):
-    embed = interactions.Embed()
-    embed.title = "Help"
-    embed.url = "https://adventofcode.com/" + str(year)
-    embed.add_field("Step 1", "Go to [AdventOfCodeWebsite](https://adventofcode.com/2023)\nRegister there under Login")
-    embed.add_field("Step 2", "Under Settings in the website you find your Username\nNow Subscribe by the command:\n"
-                              "/subscribe adventname: YOURUSERNAME")
-    embed.add_field("Step 3", "Now ask your AdventOfCode Manager on the Server for the private Leaderboard code")
-    embed.add_field("Step 4", "Have fun and a twinklie time")
-    await ctx.send(embeds=embed, ephemeral=True)
+    await ctx.send(embeds=gen_help(), ephemeral=True)
+
+@interactions.slash_command(name="show_help_permanently", description="Shows you how to start")
+@interactions.slash_default_member_permission(permission=interactions.Permissions.ADMINISTRATOR)
+async def show_help_permanently(ctx: interactions.SlashContext):
+    await ctx.send(embeds=gen_help()
 
 
 @interactions.slash_command(name="resend_message", description="Sets this channel to the publish channel")

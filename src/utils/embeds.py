@@ -6,6 +6,17 @@ from interactions.ext.paginators import Paginator
 today = datetime.date.today()
 year = today.year
 
+def gen_help():
+    embed = interactions.Embed()
+    embed.title = "Help"
+    embed.url = "https://adventofcode.com/" + str(year)
+    embed.add_field("Step 1", "Go to [AdventOfCodeWebsite](https://adventofcode.com/2023)\nRegister there under Login")
+    embed.add_field("Step 2", "Under Settings in the website you find your Username\nNow Subscribe by the command:\n"
+                              "/subscribe adventname: YOURUSERNAME")
+    embed.add_field("Step 3", "Now ask your AdventOfCode Manager on the Server for the private Leaderboard code")
+    embed.add_field("Step 4", "Have fun and a twinklie time")
+    return embed
+
 def gen_embed(bot: interactions.Client, message):
     embed = interactions.Embed("Continue: ...")
     embed.url = "https://adventofcode.com/{}/day/{}".format(year, message.split("Day ")[1][0])
