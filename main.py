@@ -112,7 +112,7 @@ async def add_hint(ctx: interactions.SlashContext, day_hint: int, hint1: str, hi
 @interactions.slash_option("hint2", description="Hint 2", required=True, opt_type=interactions.OptionType.STRING)
 @interactions.slash_default_member_permission(permission=interactions.Permissions.ADMINISTRATOR)
 async def update_hint(ctx: interactions.SlashContext, day_hint: int, hint1: str, hint2: str):
-    if database.check_hints_exists(ctx.guild.id, "{:04d}{:02d}".format(year, day_hint)):
+    if database.check_hints_exists(str(ctx.guild.id), "{:04d}{:02d}".format(year, day_hint)):
         hint = Hint(str(ctx.guild.id), "{:04d}{:02d}".format(year, day_hint), hint1, hint2)
         database.update_hint(hint)
         await ctx.send("Hint has been updated for Day {}".format(day_hint), ephemeral=True)
@@ -124,7 +124,7 @@ async def update_hint(ctx: interactions.SlashContext, day_hint: int, hint1: str,
 @interactions.slash_option("day_hint", description="The day", required=True, opt_type=interactions.OptionType.INTEGER)
 @interactions.slash_default_member_permission(permission=interactions.Permissions.ADMINISTRATOR)
 async def delete_hint(ctx: interactions.SlashContext, day_hint: int):
-    if database.check_hints_exists(ctx.guild.id, "{:04d}{:02d}".format(year, day_hint)):
+    if database.check_hints_exists(str(ctx.guild.id), "{:04d}{:02d}".format(year, day_hint)):
         database.del_hint(str(ctx.guild.id), "{:04d}{:02d}".format(year, day_hint))
         await ctx.send("Hint has been deleted for Day {}".format(day_hint), ephemeral=True)
         return

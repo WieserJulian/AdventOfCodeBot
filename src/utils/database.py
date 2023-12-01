@@ -198,7 +198,7 @@ class DataBase:
         self.con.commit()
 
     def update_hint(self, hint: Hint):
-        self.cur.execute(f'Update HINT set puzzle1, puzzle2 WHERE  guild_id=? and day_id=?',
+        self.cur.execute(f'Update HINT set puzzle1=?, puzzle2=? WHERE  guild_id=? and day_id=?',
                          (hint.puzzle1,hint.puzzle2, hint.guild_id, hint.day_id))
         self.con.commit()
 
