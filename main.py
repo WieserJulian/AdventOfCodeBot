@@ -192,7 +192,6 @@ async def daily():
 
 @interactions.Task.create(interactions.IntervalTrigger(minutes=20))
 async def update_scoreboard():
-    print("Update")
     all_to_update = database.get_api_keys_servers()
     for api_id, server_id in all_to_update:
         owner_id, cookie_value = database.get_owner_id(api_id)
