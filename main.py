@@ -87,7 +87,7 @@ async def help_(ctx: interactions.SlashContext):
 @interactions.slash_command(name="show_help_permanently", description="Shows you how to start")
 @interactions.slash_default_member_permission(permission=interactions.Permissions.ADMINISTRATOR)
 async def show_help_permanently(ctx: interactions.SlashContext):
-    await ctx.send(embeds=gen_help()
+    await ctx.send(embeds=gen_help())
 
 
 @interactions.slash_command(name="resend_message", description="Sets this channel to the publish channel")
