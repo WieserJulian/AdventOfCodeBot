@@ -114,8 +114,8 @@ class DataBase:
             return False
 
     def get_last_message(self):
-        res = self.cur.execute(f'SELECT message FROM MESSAGE WHERE isSent = FALSE').fetchall()
-        self.cur.execute(f'Update MESSAGE set isSent = TRUE where isSent = FALSE')
+        res = self.cur.execute(f'SELECT message FROM MESSAGE WHERE isSent = 0').fetchall()
+        self.cur.execute(f'Update MESSAGE set isSent = 1 where isSent = 0')
         self.con.commit()
         return [r[0] for r in res]
 

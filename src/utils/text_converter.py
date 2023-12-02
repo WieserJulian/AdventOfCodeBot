@@ -43,7 +43,7 @@ def main_page_converter(base_url, database, year):
         for link in links:
             day = link.split("/")[-1]
             year = link.split("/")[1]
-            messageExists = database.check_message_exists(year + day)
+            messageExists = database.check_message_exists("{:04d}{:02d}".format(int(year), int(day)))
             if not messageExists:
                 logging.info("[REQUEST] "+link)
                 response = requests.get(base_url + link)

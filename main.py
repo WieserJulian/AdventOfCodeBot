@@ -224,13 +224,14 @@ async def unset_publish_channel(ctx: interactions.SlashContext):
     await ctx.send("This was not a publish channel", ephemeral=True)
 
 
-@interactions.Task.create(interactions.TimeTrigger(hour=7, minute=10, utc=False))
+@interactions.Task.create(interactions.TimeTrigger(hour=6, minute=10, utc=False))
 async def reload_page():
     message, day = main_page_converter(base_url, database, year)
-    database.add_message(Message("{:04d}{:02d}".format(year, int(day)), message))
+    if not database.check_message_exists("{:04d}{:02d}".format(year, int(day))):
+        database.add_message(Message("{:04d}{:02d}".format(year, int(day)), message))
 
 
-@interactions.Task.create(interactions.TimeTrigger(hour=7, minute=30, utc=False))
+@interactions.Task.create(interactions.TimeTrigger(hour=6, minute=15, utc=False))
 async def daily():
     channels = database.get_send_channels()
     message = database.get_last_message()
@@ -284,7 +285,7 @@ async def on_startup():
     daily.start()
     update_scoreboard.start()
     await reload_page()
-    # await daily()
+    await daily()
     await update_scoreboard()
     print("Started Tasks\n" + "=" * 50)
 
