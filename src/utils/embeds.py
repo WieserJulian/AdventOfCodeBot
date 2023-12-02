@@ -80,10 +80,9 @@ def _generate_fields_by_json(leaderboard):
     members = leaderboard['members']
     important = []
     for member in members:
-        stars = ""
+        stars = ["✹" for _ in range(25)]
         for day in members[member]['completion_day_level']:
             count = len(members[member]['completion_day_level'][day])
-            stars += "⭐" if count == 2 else "✨" if count == 1 else "✹"
-        stars += "✹" * (25 - len(stars))
-        important.append([members[member]['local_score'], members[member]['name'], stars])
+            stars[int(day)-1] = "⭐" if count == 2 else "✨" if count == 1 else "✹"
+        important.append([members[member]['local_score'], members[member]['name'], "".join(stars)])
     return sorted(important, key=lambda x: -x[0])
