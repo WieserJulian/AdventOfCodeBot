@@ -76,7 +76,6 @@ def getDaysText(soup: BeautifulSoup, base_url) -> [str]:
                 tt += f"```\n{p.text}\n```"
             else:
                 for content in p.contents:
-                    base_url = r"https://adventofcode.com"
                     tt += html_to_markdown(content, base_url)
             text.append(tt)
     return "\n".join(text)

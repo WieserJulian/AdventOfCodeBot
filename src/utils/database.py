@@ -7,10 +7,9 @@ from src.database.database_types import Base, User, Server, ScoreBoard, Hint, Ev
 
 
 class DataBase:
-    name = "AdventOfCode.db"
 
-    def __init__(self):
-        self.engine = create_engine(f'sqlite:///{self.name}')
+    def __init__(self, name: str = "AdventOfCode.db"):
+        self.engine = create_engine(f'sqlite:///{name}')
         Base.metadata.create_all(self.engine)
         self.Session = sessionmaker(bind=self.engine)
         self.session = self.Session()
@@ -66,9 +65,12 @@ class DataBase:
             self.session.delete(scoreboard)
             self.session.commit()
 
-    def update_hint(self, hint: Hint):
-        self.session.merge(hint)
-        self.session.commit()
+    def update_hint(self, guild_id: str, day_id:str, hintNew: Hint):
+        hint = self.session.query(Hint).filter_by(guild_id=guild_id, day_id=day_id).first()
+        if hint:
+            hint.puzzle1 = hintNew.puzzle1
+            hint.puzzle2 = hintNew.puzzle2
+            self.session.commit()
 
     def delete_hint(self, guild_id, day_id):
         hint = self.session.query(Hint).filter_by(guild_id=guild_id, day_id=day_id).first()
@@ -80,8 +82,10 @@ class DataBase:
         event_day = self.session.query(EventDay).filter_by(day_id=day_id).first()
         if event_day:
             event_day.year = adventDay.year
+            event_day.link = adventDay.link
             event_day.title = adventDay.title
             event_day.description = adventDay.description
+            event_day.has_been_send = adventDay.has_been_send
             self.session.commit()
 
     def delete_event_day(self, day_id: str):
