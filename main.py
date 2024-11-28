@@ -4,20 +4,17 @@ import logging
 import os
 
 import interactions
-from interactions.ext import prefixed_commands
 import requests
 from dotenv import load_dotenv
-from interactions.ext.prefixed_commands import prefixed_command, PrefixedHelpCommand
 
-from src.registerd.hint import Hint
-from src.registerd.message import Message
-from src.utils.database import DataBase
-from src.utils.embeds import gen_embed, gen_leaderboard, gen_help, gen_hint
-from src.registerd.servers import Server
-from src.scoreboard.scoreboard import ScoreBoard
-from src.utils.text_converter import main_page_converter
-from src.registerd.user import User
+from src.database.database_types import User, Server, Hint, ScoreBoard
 from src.utils.alerts import AlertHandler
+from src.utils.database import DataBase
+from src.utils.embeds import gen_leaderboard, gen_help, gen_hint, gen_welcome
+from src.utils.text_converter import convert_url_to_day_object
+from src.utils.types.AdventOfCodeDay import AdventOfCodeDay
+from src.utils.types.AdventOfCodeEmbedHandler import AdventOfCodeEmbedHandler
+from src.utils.util import day_id
 
 bot = interactions.Client(send_command_tracebacks=False)
 database = DataBase()
@@ -25,7 +22,7 @@ load_dotenv()
 base_url = "https://adventofcode.com"
 
 today = datetime.date.today()
-year = today.year
+year = "{:04d}".format(today.year)
 
 level = logging.WARN
 logging.basicConfig(filename='adventofcode.log', encoding='utf-8')
@@ -39,6 +36,11 @@ alertHandler.setLevel(level)
 alertHandler.setFormatter(formatter)
 logger.addHandler(alertHandler)
 
+console_handler = logging.StreamHandler()
+console_handler.setLevel(logging.ERROR)
+console_handler.setFormatter(formatter)
+logger.addHandler(console_handler)
+
 
 @interactions.slash_command(name="subscribe", description="Subscribe for reminder for")
 @interactions.slash_option("adventname", description="Your advent of Code Name (You find it under settings)",
@@ -47,7 +49,9 @@ logger.addHandler(alertHandler)
                            required=False, opt_type=interactions.OptionType.BOOLEAN)
 async def subscribe_to_adventofcode(ctx: interactions.SlashContext, adventname: str, reminder: bool = False):
     if not database.check_user(str(ctx.author.id)):
-        database.add_user(User(str(ctx.author.id), str(ctx.author.display_name), str(adventname), reminder))
+        database.add_record(
+            User(discord_id=str(ctx.author.id), nickname=str(ctx.author.display_name), adventname=adventname,
+                 shouldremind=reminder))
         await ctx.send("Congratulations you have been subscribed", ephemeral=True)
         return
     await ctx.send("Your already registered for this Event\nIf you want to change the reminder user /reminder",
@@ -56,26 +60,25 @@ async def subscribe_to_adventofcode(ctx: interactions.SlashContext, adventname: 
 
 @interactions.slash_command(name="unsubscribe", description="Unsubscribe from advent of code")
 async def unsubscribe_to_adventofcode(ctx: interactions.SlashContext):
-    database.del_user(str(ctx.author.id))
+    database.delete_user(str(ctx.author.id))
     await ctx.send("So sorry to hear that have a great time", ephemeral=True)
 
 
 @interactions.slash_command(name="reminder", description="Toogle reminder")
 async def toggle_reminder(ctx: interactions.SlashContext):
-    value = database.toggle_reminder(str(ctx.author.id))
+    value = database.toggle_remind(str(ctx.author.id))
     await ctx.send(f"Your reminder is: {'ON' if value else 'OFF'}", ephemeral=True)
 
 
 @interactions.slash_command(name="leaderboard", description="Get the private leaderboard")
 async def leaderboard(ctx: interactions.SlashContext):
-    server = Server(str(ctx.guild.id), str(ctx.channel.id), 0)
-    if database.check_server_api(server):
-        api_id = database.get_api_id_by_guild_id(str(ctx.guild.id))
-        if api_id is not None:
-            content, last_changed = database.get_scoreboard_and_changed(api_id)
-            content_json = json.loads(content)
+    if database.check_server(str(ctx.guild.id)):
+        server = database.get_server(str(ctx.guild.id))
+        if server.api_id is not None:
+            scoreBoard = database.get_scoreboard(server.api_id)
+            content_json = json.loads(scoreBoard.json_content)
             paginator = gen_leaderboard(content_json, database, client=bot, discord_id=str(ctx.author.id),
-                                        last_changed=last_changed)
+                                        last_changed=scoreBoard.last_refresh)
             await paginator.send(ctx)
             return
     await ctx.send("There was no leaderboard. You might want to ask your admin to create one", ephemeral=True)
@@ -98,9 +101,10 @@ async def show_help_permanently(ctx: interactions.SlashContext):
 @interactions.slash_option("hint2", description="Hint 2", required=True, opt_type=interactions.OptionType.STRING)
 @interactions.slash_default_member_permission(permission=interactions.Permissions.ADMINISTRATOR)
 async def add_hint(ctx: interactions.SlashContext, day_hint: int, hint1: str, hint2: str):
-    if not database.check_hints_exists(str(ctx.guild.id), "{:04d}{:02d}".format(year, day_hint)):
-        hint = Hint(str(ctx.guild.id), "{:04d}{:02d}".format(year, day_hint), hint1, hint2)
-        database.add_hints(hint)
+    if not database.check_hint(str(ctx.guild.id), day_id(year, day_hint)):
+        hint = Hint(guild_id=str(ctx.guild.id), day_id=day_id(year, day_hint), puzzle1=hint1,
+                    puzzle2=hint2)
+        database.add_record(hint)
         await ctx.send("Hint has been added for Day {}".format(day_hint), ephemeral=True)
         return
     await ctx.send("There has already been Hints for Day {} => Try update_hint".format(day_hint), ephemeral=True)
@@ -112,8 +116,9 @@ async def add_hint(ctx: interactions.SlashContext, day_hint: int, hint1: str, hi
 @interactions.slash_option("hint2", description="Hint 2", required=True, opt_type=interactions.OptionType.STRING)
 @interactions.slash_default_member_permission(permission=interactions.Permissions.ADMINISTRATOR)
 async def update_hint(ctx: interactions.SlashContext, day_hint: int, hint1: str, hint2: str):
-    if database.check_hints_exists(str(ctx.guild.id), "{:04d}{:02d}".format(year, day_hint)):
-        hint = Hint(str(ctx.guild.id), "{:04d}{:02d}".format(year, day_hint), hint1, hint2)
+    if database.check_hint(str(ctx.guild.id), day_id(year, day_hint)):
+        hint = Hint(guild_id=str(ctx.guild.id), day_id=day_id(year, day_hint), puzzle1=hint1,
+                    puzzle2=hint2)
         database.update_hint(hint)
         await ctx.send("Hint has been updated for Day {}".format(day_hint), ephemeral=True)
         return
@@ -124,8 +129,8 @@ async def update_hint(ctx: interactions.SlashContext, day_hint: int, hint1: str,
 @interactions.slash_option("day_hint", description="The day", required=True, opt_type=interactions.OptionType.INTEGER)
 @interactions.slash_default_member_permission(permission=interactions.Permissions.ADMINISTRATOR)
 async def delete_hint(ctx: interactions.SlashContext, day_hint: int):
-    if database.check_hints_exists(str(ctx.guild.id), "{:04d}{:02d}".format(year, day_hint)):
-        database.del_hint(str(ctx.guild.id), "{:04d}{:02d}".format(year, day_hint))
+    if database.check_hint(str(ctx.guild.id), day_id(year, day_hint)):
+        database.delete_hint(str(ctx.guild.id), day_id(year, day_hint))
         await ctx.send("Hint has been deleted for Day {}".format(day_hint), ephemeral=True)
         return
     await ctx.send("There were no Hints for Day {} => Try add_hint".format(day_hint), ephemeral=True)
@@ -134,8 +139,8 @@ async def delete_hint(ctx: interactions.SlashContext, day_hint: int):
 @interactions.slash_command(name="hint", description="Get hint from server")
 @interactions.slash_option("day_hint", description="The day", required=True, opt_type=interactions.OptionType.INTEGER)
 async def hint(ctx: interactions.SlashContext, day_hint: int):
-    if database.check_hints_exists(str(ctx.guild.id), "{:04d}{:02d}".format(year, day_hint)):
-        puzzles = database.get_hint(str(ctx.guild.id), "{:04d}{:02d}".format(year, day_hint))
+    if database.check_hint(str(ctx.guild.id), day_id(year, day_hint)):
+        puzzles = database.get_hint(str(ctx.guild.id), day_id(year, day_hint))
         await ctx.send(embed=gen_hint(puzzles, day_hint), ephemeral=True)
         return
     await ctx.send("There were no Hints for Day {}".format(day_hint), ephemeral=True)
@@ -146,11 +151,29 @@ async def hint(ctx: interactions.SlashContext, day_hint: int):
                            required=True, opt_type=interactions.OptionType.INTEGER)
 @interactions.slash_default_member_permission(permission=interactions.Permissions.ADMINISTRATOR)
 async def resend_message(ctx: interactions.SlashContext, day: int):
-    server = Server(str(ctx.guild.id), str(ctx.channel.id))
-    message = database.get_message("{:04d}{:02d}".format(year, day))
-    if database.check_server_channel(server):
+    server = database.get_server(str(ctx.guild.id))
+    if day == 0:
+        table = database.get_advent_table(year)
+        if server is not None:
+            if table is not None:
+                embed = gen_welcome(table.description)
+                await ctx.send(embed=embed)
+                return
+            await ctx.send("No message has been found for that day", ephemeral=True)
+            return
+        await ctx.send("This server has not been registered a publishing channel", ephemeral=True)
+        return
+    message = database.get_event_day_and_ready(day_id(year, day))
+    if server is not None:
         if message is not None:
-            await ctx.send(embeds=gen_embed(bot, message))
+            message = AdventOfCodeDay.from_event_day(message)
+            embedhandler = AdventOfCodeEmbedHandler(message)
+            embeds = embedhandler.get_embeds(bot)
+            if embedhandler.multiple_messages:
+                for embed in embeds:
+                    await ctx.send(embeds=embed)
+                return
+            await ctx.send(embeds=embeds)
             return
         await ctx.send("No message has been found for that day", ephemeral=True)
         return
@@ -160,9 +183,9 @@ async def resend_message(ctx: interactions.SlashContext, day: int):
 @interactions.slash_command(name="publish_channel", description="Sets this channel to the publish channel")
 @interactions.slash_default_member_permission(permission=interactions.Permissions.ADMINISTRATOR)
 async def set_publish_channel(ctx: interactions.SlashContext):
-    server = Server(str(ctx.guild.id), str(ctx.channel.id))
-    if not database.check_server_channel(server):
-        database.add_servers(server)
+    if not database.check_server(str(ctx.guild.id)):
+        server = Server(guild_id=str(ctx.guild.id), channel_id=str(ctx.channel.id))
+        database.add_record(server)
         await ctx.send("This channel has been set to be a publish channel", ephemeral=True)
         return
     await ctx.send("This is already a publishing channel", ephemeral=True)
@@ -171,13 +194,13 @@ async def set_publish_channel(ctx: interactions.SlashContext):
 @interactions.slash_command(name="delete_leaderboard", description="Sets this channel to the publish channel")
 @interactions.slash_default_member_permission(permission=interactions.Permissions.ADMINISTRATOR)
 async def delete_leaderboard(ctx: interactions.SlashContext):
-    server = Server(str(ctx.guild.id), str(ctx.channel.id))
-    if database.check_server(server):
-        if database.check_server_api(server):
-            api_id = database.get_api_id_by_guild_id(server.id)
-            database.del_scoreboard(api_id)
-            server.leader_api = None
-            database.update_servers_api(server)
+    guild_id = str(ctx.guild.id)
+    if database.check_server(guild_id):
+        if database.check_server_has_api(guild_id):
+            server = database.get_server(guild_id=guild_id)
+            database.delete_scoreboard(server.api_id)
+            server.api_id = None
+            database.update_server(server)
             await ctx.send("Your leaderboard has been deleted", ephemeral=True)
             return
         await ctx.send("There was no leaderboard. You might want to create one? (/set_leaderboard)", ephemeral=True)
@@ -192,20 +215,22 @@ async def delete_leaderboard(ctx: interactions.SlashContext):
                            required=True, opt_type=interactions.OptionType.STRING)
 @interactions.slash_default_member_permission(permission=interactions.Permissions.ADMINISTRATOR)
 async def set_leaderboard(ctx: interactions.SlashContext, owner_id: str, cookie: str):
-    server = Server(str(ctx.guild.id), str(ctx.channel.id), owner_id)
-    if database.check_server(server):
-        if not database.check_server_api(server):
-            database.update_servers_api(server)
+    guild_id = str(ctx.guild.id)
+    if database.check_server(guild_id):
+        if not database.check_server_has_api(guild_id):
+            server = database.get_server(guild_id=guild_id)
+            server.owner_id = owner_id
+            server.api_id = cookie
+            database.update_server(server)
             s = requests.session()
             cookie_obj = requests.cookies.create_cookie(domain=".adventofcode.com", name="session", value=cookie)
             s.cookies.set_cookie(cookie_obj)
             content = s.get(
                 base_url + r"/{}/leaderboard/private/view/{}.json".format(str(year), str(owner_id))).content.decode()
             content_json = json.loads(content)
-            database.add_scoreboard(
-                ScoreBoard(owner_id, datetime.datetime.now().strftime("%Y.%m.%d %H:%M"),
-                           owner_id=content_json['owner_id'],
-                           json_content=content, cookie_value=cookie))
+            scoreboard = ScoreBoard(api_id=owner_id, cookie_value=cookie, json_content=content_json,
+                                    last_refresh=datetime.datetime.now().strftime("%Y.%m.%d %H:%M"))
+            database.add_record(scoreboard)
             await ctx.send("Your leaderboard has been set", ephemeral=True)
             return
         await ctx.send("There is already an private leaderboard registered", ephemeral=True)
@@ -216,9 +241,9 @@ async def set_leaderboard(ctx: interactions.SlashContext, owner_id: str, cookie:
 @interactions.slash_command(name="remove_publish", description="Remove publishing channel")
 @interactions.slash_default_member_permission(permission=interactions.Permissions.ADMINISTRATOR)
 async def unset_publish_channel(ctx: interactions.SlashContext):
-    server = Server(str(ctx.guild.id), str(ctx.channel.id))
-    if database.check_server_channel(server):
-        database.del_server(Server(str(ctx.guild.id), str(ctx.channel.id)))
+    server = database.get_server(str(ctx.guild.id))
+    if server.channel_id == str(ctx.channel.id):
+        database.delete_server(str(ctx.guild.id))
         await ctx.send("This is no longer a publish channel", ephemeral=True)
         return
     await ctx.send("This was not a publish channel", ephemeral=True)
@@ -226,48 +251,61 @@ async def unset_publish_channel(ctx: interactions.SlashContext):
 
 @interactions.Task.create(interactions.TimeTrigger(hour=6, minute=10, utc=False))
 async def reload_page():
-    message, day = main_page_converter(base_url, database, year)
-    if not database.check_message_exists("{:04d}{:02d}".format(year, int(day))):
-        database.add_message(Message("{:04d}{:02d}".format(year, int(day)), message))
+    table = convert_url_to_day_object(base_url, year)
+    if table is None:
+        return
+    if not database.check_advent_table(year):
+        database.add_record(table.to_advent_table())
+    for day in table.days:
+        if not database.check_event_day(day.day_id):
+            database.add_record(day.to_event_day())
 
 
 @interactions.Task.create(interactions.TimeTrigger(hour=6, minute=15, utc=False))
 async def daily():
     channels = database.get_send_channels()
-    message = database.get_last_message()
+    messages = database.get_last_message()
     users = database.get_send_users()
     for channel in channels:
         channel = bot.get_channel(channel)
-        for mes in message:
-            if mes.count("<embed>") == 0:
-                await channel.send("@here", embeds=gen_embed(bot, mes))
-            else:
-                for em in mes.split("<embed>"):
-                    await channel.send("@here", embeds=gen_embed(bot, em))
+        for message in messages:
+            message = AdventOfCodeDay.from_event_day(message)
+            embedhandler = AdventOfCodeEmbedHandler(message)
+            embeds = embedhandler.get_embeds(bot)
+            if embedhandler.multiple_messages:
+                for i, embed in enumerate(embeds):
+                    await channel.send("@here" if i == 0 else "", embeds=embed)
+                return
+            await channel.send("@here", embeds=embeds)
     for user_id in users:
         user = await bot.fetch_user(user_id)
-        for mes in message:
-            if mes.count("<embed>") == 0:
-                await user.send(embeds=gen_embed(bot, mes))
-            else:
-                for em in mes.split("<embed>"):
-                    await user.send(embeds=gen_embed(bot, em))
+        for message in messages:
+            message = AdventOfCodeDay.from_event_day(message)
+            embedhandler = AdventOfCodeEmbedHandler(message)
+            embeds = embedhandler.get_embeds(bot)
+            if embedhandler.multiple_messages:
+                for i, embed in enumerate(embeds):
+                    await user.send("@here" if i == 0 else "", embeds=embed)
+                return
+            await user.send("@here", embeds=embeds)
+    database.update_last_messages()
 
 
 @interactions.Task.create(interactions.IntervalTrigger(minutes=20))
 async def update_scoreboard():
-    all_to_update = database.get_api_keys_servers()
-    for api_id, server_id in all_to_update:
-        owner_id, cookie_value = database.get_owner_id(api_id)
+    servers = database.get_all_server_with_api()
+    for server in servers:
+        scoreboard = database.get_scoreboard(server.api_id)
         s = requests.session()
-        cookie_obj = requests.cookies.create_cookie(domain=".adventofcode.com", name="session", value=cookie_value)
+        cookie_obj = requests.cookies.create_cookie(domain=".adventofcode.com", name="session",
+                                                    value=scoreboard.cookie_value)
         s.cookies.set_cookie(cookie_obj)
         content = s.get(
-            base_url + r"/{}/leaderboard/private/view/{}.json".format(str(year), str(owner_id))).content.decode()
+            base_url + r"/{}/leaderboard/private/view/{}.json".format(str(year), str(server.owner_id))).content.decode()
         content_json = json.loads(content)
-        database.update_scoreboard(ScoreBoard(api_id, datetime.datetime.now().strftime("%Y.%m.%d %H:%M"),
-                                              owner_id=content_json['owner_id'], json_content=content,
-                                              cookie_value=None))
+        scoreboard = ScoreBoard(api_id=server.api_id, cookie_value=scoreboard.cookie_value, json_content=content_json,
+                                last_refresh=datetime.datetime.now().strftime("%Y.%m.%d %H:%M"))
+        database.update_scoreboard(server.api_id, scoreboard)
     pass
 
 
