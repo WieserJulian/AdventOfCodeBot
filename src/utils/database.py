@@ -115,9 +115,13 @@ class DataBase:
 
     def get_last_message(self):
         res = self.cur.execute(f'SELECT message FROM MESSAGE WHERE isSent = 0').fetchall()
-        self.cur.execute(f'Update MESSAGE set isSent = 1 where isSent = 0')
         self.con.commit()
         return [r[0] for r in res]
+
+    def update_last_messages(self):
+        self.cur.execute(f'Update MESSAGE set isSent = 1 where isSent = 0')
+        self.con.commit()
+
 
     def get_message(self, id):
         res = self.cur.execute(f'SELECT message FROM MESSAGE WHERE day_id = ?', (id, )).fetchone()

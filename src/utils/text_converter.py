@@ -1,6 +1,6 @@
 import logging
 import math
-
+import re
 import requests
 
 from src.registerd.message import Message
@@ -10,13 +10,16 @@ def main_page_converter(base_url, database, year):
     content = requests.get(base_url + r"/" + str(year))
     if content.status_code == 200:
         main_part = str(content.content).split("<main>")[1].split("</main>")[0].replace("\\n", "\n").replace("\\'", "\'")
+        main_part = re.sub(r'<script.*?>.*?</script>', '', main_part, flags=re.DOTALL)
         main_part = main_part.replace('<pre class="calendar calendar-beckon">', "").replace("</pre>", "")
         if main_part.count('<a aria-label=') == 0:
             messageExists = database.check_message_exists("{:04d}{:02d}".format(year, 0))
+
             if not messageExists:
                 message = []
                 message.append("<title>AdventOfCode: Will start soon")
                 message.append("<author>"+base_url)
+
                 for para in main_part.split("<p>"):
                     cleaned = ""
                     para = para.replace("</p>", "")

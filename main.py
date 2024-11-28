@@ -4,20 +4,18 @@ import logging
 import os
 
 import interactions
-from interactions.ext import prefixed_commands
 import requests
 from dotenv import load_dotenv
-from interactions.ext.prefixed_commands import prefixed_command, PrefixedHelpCommand
 
 from src.registerd.hint import Hint
 from src.registerd.message import Message
+from src.registerd.servers import Server
+from src.registerd.user import User
+from src.scoreboard.scoreboard import ScoreBoard
+from src.utils.alerts import AlertHandler
 from src.utils.database import DataBase
 from src.utils.embeds import gen_embed, gen_leaderboard, gen_help, gen_hint
-from src.registerd.servers import Server
-from src.scoreboard.scoreboard import ScoreBoard
 from src.utils.text_converter import main_page_converter
-from src.registerd.user import User
-from src.utils.alerts import AlertHandler
 
 bot = interactions.Client(send_command_tracebacks=False)
 database = DataBase()
@@ -252,6 +250,7 @@ async def daily():
             else:
                 for em in mes.split("<embed>"):
                     await user.send(embeds=gen_embed(bot, em))
+    database.update_last_messages()
 
 
 @interactions.Task.create(interactions.IntervalTrigger(minutes=20))
