@@ -1,214 +1,167 @@
-import sqlite3
+from typing import Type
 
-from src.registerd.hint import Hint
-from src.registerd.message import Message
-from src.registerd.servers import Server
-from src.registerd.user import User
-from src.scoreboard.scoreboard import ScoreBoard
+from sqlalchemy import create_engine
+from sqlalchemy.orm import sessionmaker
+
+from src.database.database_types import Base, User, Server, ScoreBoard, Hint, EventDay, AdventTable
 
 
 class DataBase:
-    name = "AdventOfCode.db"
 
-    def __init__(self):
-        self.con = sqlite3.connect(self.name)
-        self.cur = self.con.cursor()
-        self.__init_database__()
+    def __init__(self, name: str = "AdventOfCode.db"):
+        self.engine = create_engine(f'sqlite:///{name}')
+        Base.metadata.create_all(self.engine)
+        self.Session = sessionmaker(bind=self.engine)
+        self.session = self.Session()
 
-    def __init_database__(self):
-        database_layout = {
-            'USER': "discord_id, nickname, adventname, shouldremind",
-            'MESSAGE': "day_id, message, isSent",
-            'SERVER': "guild_id, channel_id, api_id",
-            'SCOREBOARD': "api_id, cookie_value, owner_id, json_content, last_refresh",
-            'HINT': "guild_id, day_id, puzzle1, puzzle2"
-        }
-        for layout in database_layout:
-            self.__create_table__(layout, database_layout[layout])
+    def add_record(self, record):
+        self.session.add(record)
+        self.session.commit()
 
-    def add_user(self, user: User):
-        self.cur.execute(f'INSERT INTO USER VALUES(?,?, ?, ?)',
-                         (user.id, user.name, user.advent_of_code_name, user.reminder))
-        self.con.commit()
+    def update_user(self, discord_id, **kwargs):
+        user = self.session.query(User).filter_by(discord_id=discord_id).first()
+        if user:
+            for key, value in kwargs.items():
+                setattr(user, key, value)
+            self.session.commit()
 
-    def add_message(self, message: Message):
-        self.cur.execute(f'INSERT INTO MESSAGE VALUES(?,?, FALSE)', (message.id, message.message))
-        self.con.commit()
+    def toggle_remind(self, discord_id):
+        user = self.session.query(User).filter_by(discord_id=discord_id).first()
+        if user:
+            user.shouldremind = not user.shouldremind
+            self.session.commit()
 
-    def add_servers(self, server: Server):
-        self.cur.execute(f'INSERT INTO SERVER VALUES(?,?,?)', (server.id, server.channel, server.leader_api))
-        self.con.commit()
+    def delete_user(self, discord_id):
+        user = self.session.query(User).filter_by(discord_id=discord_id).first()
+        if user:
+            self.session.delete(user)
+            self.session.commit()
 
-    def add_scoreboard(self, scoreboard: ScoreBoard):
-        self.cur.execute(f'INSERT INTO SCOREBOARD VALUES(?,?,?, ?, ?)',
-                         (scoreboard.id, scoreboard.cookie_value, scoreboard.owner_id,
-                          scoreboard.json_content, scoreboard.last_refresh))
-        self.con.commit()
+    def update_server(self, guild_id, **kwargs):
+        server = self.session.query(Server).filter_by(guild_id=guild_id).first()
+        if server:
+            for key, value in kwargs.items():
+                setattr(server, key, value)
+            self.session.commit()
 
-    def add_hints(self, hint: Hint):
-        self.cur.execute(f'INSERT INTO HINT VALUES(?,?,?,?)',
-                         (hint.guild_id, hint.day_id, hint.puzzle1, hint.puzzle2))
-        self.con.commit()
+    def delete_server(self, guild_id):
+        server = self.session.query(Server).filter_by(guild_id=guild_id).first()
+        if server:
+            self.session.delete(server)
+            self.session.commit()
 
-    def check_message_exists(self, id):
-        try:
-            res = self.cur.execute(f'SELECT count(*) FROM MESSAGE WHERE day_id=?', (id,)).fetchone()
-            if res is None:
-                return False
-            if res[0] is None:
-                return False
-            return res[0] != 0
-        except Exception as ex:
-            return False
+    def update_scoreboard(self, api_id, score_board: ScoreBoard):
+        scoreboard = self.session.query(ScoreBoard).filter_by(api_id=api_id).first()
+        if scoreboard:
+            scoreboard.cookie_value = score_board.cookie_value
+            scoreboard.owner_id = score_board.owner_id
+            scoreboard.json_content = score_board.json_content
+            scoreboard.last_refresh = score_board.last_refresh
+            self.session.commit()
 
-    def check_hints_exists(self, guild_id, day_id):
-        try:
-            res = self.cur.execute(f'SELECT count(*) FROM HINT WHERE day_id=? and guild_id=?', (day_id, guild_id)).fetchone()
-            if res is None:
-                return False
-            if res[0] is None:
-                return False
-            return res[0] != 0
-        except Exception as ex:
-            return False
+    def delete_scoreboard(self, api_id):
+        scoreboard = self.session.query(ScoreBoard).filter_by(api_id=api_id).first()
+        if scoreboard:
+            self.session.delete(scoreboard)
+            self.session.commit()
 
-    def check_user(self, id):
-        try:
-            res = self.cur.execute(f'SELECT count(*) FROM USER WHERE discord_id=?', (id,)).fetchone()
-            if res is None:
-                return False
-            if res[0] is None:
-                return False
-            return res[0] != 0
-        except Exception as ex:
-            return False
+    def update_hint(self, guild_id: str, day_id:str, hintNew: Hint):
+        hint = self.session.query(Hint).filter_by(guild_id=guild_id, day_id=day_id).first()
+        if hint:
+            hint.puzzle1 = hintNew.puzzle1
+            hint.puzzle2 = hintNew.puzzle2
+            self.session.commit()
 
-    def check_server_channel(self, server: Server):
-        try:
-            res = self.cur.execute(f'SELECT count(*) FROM SERVER WHERE guild_id=? AND channel_id=?',
-                                    (server.id, server.channel)).fetchone()
-            if res is None:
-                return False
-            if res[0] is None:
-                return False
-            return res[0] != 0
-        except Exception as ex:
-            return False
+    def delete_hint(self, guild_id, day_id):
+        hint = self.session.query(Hint).filter_by(guild_id=guild_id, day_id=day_id).first()
+        if hint:
+            self.session.delete(hint)
+            self.session.commit()
 
-    def check_server(self, server: Server):
-        try:
-            return self.cur.execute(f'SELECT count(*) FROM SERVER WHERE guild_id=? ',
-                                    (server.id, )).fetchone()[0] != 0
-        except Exception as ex:
-            return False
+    def update_event_day(self, day_id: str, adventDay: EventDay):
+        event_day = self.session.query(EventDay).filter_by(day_id=day_id).first()
+        if event_day:
+            event_day.year = adventDay.year
+            event_day.link = adventDay.link
+            event_day.title = adventDay.title
+            event_day.description = adventDay.description
+            event_day.has_been_send = adventDay.has_been_send
+            self.session.commit()
 
-    def check_server_api(self, server: Server):
-        try:
-            res = self.cur.execute(f'SELECT api_id FROM SERVER WHERE guild_id=?',(server.id, )).fetchone()
-            if res is None:
-                return False
-            if res[0] is None or res[0] == "":
-                return False
-            return True
-        except Exception as ex:
-            return False
+    def delete_event_day(self, day_id: str):
+        event_day = self.session.query(EventDay).filter_by(day_id=day_id).first()
+        if event_day:
+            self.session.delete(event_day)
+            self.session.commit()
+
+    def update_advent_table(self, year, adventtable: AdventTable):
+        advent_table = self.session.query(AdventTable).filter_by(year=year).first()
+        if advent_table:
+            advent_table.title = adventtable.title
+            advent_table.description = adventtable.description
+            advent_table.days = adventtable.days
+            self.session.commit()
+
+    def delete_advent_table(self, year):
+        advent_table = self.session.query(AdventTable).filter_by(year=year).first()
+        if advent_table:
+            self.session.delete(advent_table)
+            self.session.commit()
+
+    def get_user(self, discord_id: str) -> Type[User] | None:
+        return self.session.query(User).filter_by(discord_id=discord_id).first()
+
+    def get_server(self, guild_id: str) -> Type[Server] | None:
+        return self.session.query(Server).filter_by(guild_id=guild_id).first()
+
+    def get_scoreboard(self, api_id: str) -> Type[ScoreBoard] | None:
+        return self.session.query(ScoreBoard).filter_by(api_id=api_id).first()
+
+    def get_hint(self, guild_id: str, day_id: str) -> Type[Hint] | None:
+        return self.session.query(Hint).filter_by(guild_id=guild_id, day_id=day_id).first()
+
+    def get_event_day(self, day_id: str) -> Type[EventDay] | None:
+        return self.session.query(EventDay).filter_by(day_id=day_id).first()
+
+    def get_event_day_and_ready(self, day_id: str) -> Type[EventDay] | None:
+        return self.session.query(EventDay).filter_by(day_id=day_id).filter(EventDay.link.isnot(None)).first()
+
+    def get_advent_table(self, year: str) -> Type[AdventTable] | None:
+        return self.session.query(AdventTable).filter_by(year=year).first()
+
+    def check_user(self, discord_id: str) -> bool:
+        return bool(self.session.query(User).filter_by(discord_id=discord_id).first())
+
+    def check_server(self, guild_id: str) -> bool:
+        return bool(self.session.query(Server).filter_by(guild_id=guild_id).first())
+
+    def check_server_has_api(self, guild_id: str) -> bool:
+        return bool(self.session.query(Server).filter_by(guild_id=guild_id).first().api_id)
+
+    def check_hint(self, guild_id: str, day_id: str) -> bool:
+        return bool(self.session.query(Hint).filter_by(guild_id=guild_id, day_id=day_id).first())
+
+    def check_message(self, day_id: str) -> bool:
+        return bool(self.session.query(EventDay).filter_by(day_id=day_id).first())
+
+    def check_event_day(self, day_id: str) -> bool:
+        return bool(self.session.query(EventDay).filter_by(day_id=day_id).first())
+
+    def check_advent_table(self, year: str) -> bool:
+        return bool(self.session.query(AdventTable).filter_by(year=year).first())
+
+    def get_send_channels(self) -> [str]:
+        return [server.channel_id for server in self.session.query(Server).all()]
 
     def get_last_message(self):
-        res = self.cur.execute(f'SELECT message FROM MESSAGE WHERE isSent = 0').fetchall()
-        self.con.commit()
-        return [r[0] for r in res]
-
-    def update_last_messages(self):
-        self.cur.execute(f'Update MESSAGE set isSent = 1 where isSent = 0')
-        self.con.commit()
-
-
-    def get_message(self, id):
-        res = self.cur.execute(f'SELECT message FROM MESSAGE WHERE day_id = ?', (id, )).fetchone()
-        if res is not None:
-            return res[0]
-        else:
-            return None
-
-    def get_api_keys_servers(self):
-        res = self.cur.execute('SELECT api_id, guild_id FROM SERVER WHERE api_id is not null').fetchall()
-        return [list(r) for r in res]
-
-    def get_api_id_by_guild_id(self, id):
-        res = self.cur.execute('SELECT api_id FROM SERVER WHERE guild_id = ?', (str(id),)).fetchone()
-        if res is None:
-            return None
-        return res[0]
-
-    def get_hint(self, guild_id, day_id):
-        res = self.cur.execute('SELECT puzzle1, puzzle2 FROM HINT WHERE guild_id = ? and day_id=?', (guild_id, day_id)).fetchone()
-        if res is None:
-            return None
-        return res
-
-    def get_owner_id(self, id):
-        res = self.cur.execute('SELECT owner_id, cookie_value FROM SCOREBOARD WHERE api_id = ?', (str(id),)).fetchone()
-        return tuple(res)
-
-    def get_send_channels(self):
-        res = self.cur.execute(f'SELECT channel_id FROM SERVER').fetchall()
-        return [r[0] for r in res]
-
-    def get_scoreboard_and_changed(self, id):
-        res = self.cur.execute(f'SELECT json_content,last_refresh FROM SCOREBOARD WHERE api_id = ?', (id,)).fetchone()
-        return tuple(res)
-
-    def get_nickname_by_adventname(self, name):
-        res = self.cur.execute(f'SELECT nickname FROM USER WHERE adventname = ?', (name,)).fetchone()
-        return res[0] if res is not None else ""
-
-    def get_adventname_by_discord_id(self, discord_id):
-        res = self.cur.execute(f'SELECT adventname FROM USER WHERE discord_id = ?', (discord_id,)).fetchone()
-        return res[0] if res is not None else ""
+        return self.session.query(EventDay).filter_by(has_been_send=False).filter(EventDay.link.isnot(None)).all()
 
     def get_send_users(self):
-        res = self.cur.execute(f'SELECT discord_id FROM USER WHERE shouldremind = TRUE').fetchall()
-        return [r[0] for r in res]
+        return self.session.query(User).filter(User.shouldremind == True).all()
 
-    def del_user(self, id):
-        self.cur.execute(f'DELETE FROM USER WHERE discord_id=?', (id,))
-        self.con.commit()
+    def update_last_messages(self):
+        self.session.query(EventDay).update({'has_been_send': True})
+        self.session.commit()
 
-    def del_server(self, server: Server):
-        self.cur.execute(f'DELETE FROM SERVER WHERE guild_id=? AND channel_id=?', (server.id, server.channel))
-        self.con.commit()
-
-    def del_scoreboard(self, api_id):
-        self.cur.execute('DELETE FROM SCOREBOARD WHERE api_id=? ', (api_id,))
-        self.con.commit()
-
-    def del_hint(self,guild_id, day_id):
-        self.cur.execute('DELETE FROM HINT WHERE guild_id=? and day_id=? ', (guild_id,day_id))
-        self.con.commit()
-
-    def toggle_reminder(self, id):
-        value = self.cur.execute(f'SELECT shouldremind FROM USER WHERE discord_id = ?', (id,)).fetchone()[0]
-        self.cur.execute(f'Update USER set shouldremind = ? where discord_id = ?', (not value, id))
-        self.con.commit()
-        return not value
-
-    def update_servers_api(self, server):
-        self.cur.execute(f'Update SERVER set api_id = ? where guild_id = ?', (server.leader_api, server.id))
-        self.con.commit()
-
-    def update_scoreboard(self, scoreboard: ScoreBoard):
-        self.cur.execute(f'Update SCOREBOARD set json_content = ?, last_refresh=? WHERE api_id = ?',
-                         (scoreboard.json_content,scoreboard.last_refresh, scoreboard.id))
-        self.con.commit()
-
-    def update_hint(self, hint: Hint):
-        self.cur.execute(f'Update HINT set puzzle1=?, puzzle2=? WHERE  guild_id=? and day_id=?',
-                         (hint.puzzle1,hint.puzzle2, hint.guild_id, hint.day_id))
-        self.con.commit()
-
-    def __create_table__(self, name, columns):
-        try:
-            self.cur.execute(f"CREATE TABLE {name}({columns})")
-            self.con.commit()
-        except Exception as ex:
-            print(ex)
+    def get_all_server_with_api(self) -> [Server]:
+        return self.session.query(Server).filter(Server.api_id.isnot(None)).all()
