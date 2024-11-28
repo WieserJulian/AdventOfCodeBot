@@ -36,6 +36,11 @@ alertHandler.setLevel(level)
 alertHandler.setFormatter(formatter)
 logger.addHandler(alertHandler)
 
+console_handler = logging.StreamHandler()
+console_handler.setLevel(logging.ERROR)
+console_handler.setFormatter(formatter)
+logger.addHandler(console_handler)
+
 
 @interactions.slash_command(name="subscribe", description="Subscribe for reminder for")
 @interactions.slash_option("adventname", description="Your advent of Code Name (You find it under settings)",
