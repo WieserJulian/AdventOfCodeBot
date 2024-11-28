@@ -2,7 +2,7 @@
 <project version="4">
   <component name="DataSourceManagerImpl" format="xml" multifile-model="true">
     <data-source source="LOCAL" name="AdventOfCode" uuid="d8676d10-13c7-40b3-bd31-4440ffeb67b8">
-      <driver-ref>sqlite.xerial</driver-ref>
+      <driver-ref>2d9c225f-2a92-4df8-89ff-db7d637a84d2</driver-ref>
       <synchronize>true</synchronize>
       <jdbc-driver>org.sqlite.JDBC</jdbc-driver>
       <jdbc-url>jdbc:sqlite:C:\dev\AdventOfCodeBot\AdventOfCode.db</jdbc-url>

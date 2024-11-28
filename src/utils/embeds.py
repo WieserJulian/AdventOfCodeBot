@@ -1,6 +1,7 @@
 import datetime
 
 import interactions
+from interactions import EmbedFooter
 from interactions.ext.paginators import Paginator
 
 today = datetime.date.today()
@@ -19,7 +20,7 @@ def gen_help():
     embed = interactions.Embed()
     embed.title = "Help"
     embed.url = "https://adventofcode.com/" + str(year)
-    embed.add_field("Step 1", "Go to [AdventOfCodeWebsite](https://adventofcode.com/2023)\nRegister there under Login")
+    embed.add_field("Step 1", f"Go to [AdventOfCodeWebsite](https://adventofcode.com/{str(year)})\nRegister there under Login")
     embed.add_field("Step 2", "Under Settings in the website you find your Username\nNow Subscribe by the command:\n"
                               "/subscribe adventname: YOURUSERNAME")
     embed.add_field("Step 3", "Now ask your AdventOfCode Manager on the Server for the private Leaderboard code")
@@ -27,20 +28,12 @@ def gen_help():
     return embed
 
 
-def gen_embed(bot: interactions.Client, message):
-    embed = interactions.Embed("Continue: ...")
-    embed.url = "https://adventofcode.com/{}/day/{}".format(year, message.split("Day ")[1].split(":")[0])
-    for field in message.split("<field>"):
-        if field.startswith("<author>"):
-            embed.set_author(bot.user.username, icon_url=bot.user.avatar.url, url=field.split("<author>")[1])
-        elif field.startswith("<title>"):
-            embed.title = field.split("<title>")[1]
-        else:
-            if len(field) <= 1024:
-                embed.add_field(" ", field)
-            else:
-                embed.add_field("FIELD EXTENDING FAILED",
-                                "**[VISIT WEBSITE TO WATCH THIS COLOSSUS](https://adventofcode.com/)**")
+def gen_welcome(message: str):
+    embed = interactions.Embed()
+    embed.title = "Welcome back in the Advent Of Code "+str(year)
+    embed.url = "https://adventofcode.com/" + str(year)
+    embed.add_field("From AdventOfCode", message)
+    embed.footer = EmbedFooter(text="Hello I am the AdventOfCode Bot\nI will help you with your AdventOfCode Journey")
     return embed
 
 
