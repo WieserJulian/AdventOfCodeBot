@@ -2,6 +2,7 @@ from typing import Type
 
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
+from sqlalchemy.testing.suite.test_reflection import users
 
 from src.database.database_types import Base, User, Server, ScoreBoard, Hint, EventDay, AdventTable
 
@@ -30,6 +31,8 @@ class DataBase:
         if user:
             user.shouldremind = not user.shouldremind
             self.session.commit()
+            return user.shouldremind
+        return False
 
     def delete_user(self, discord_id):
         user = self.session.query(User).filter_by(discord_id=discord_id).first()
@@ -37,11 +40,11 @@ class DataBase:
             self.session.delete(user)
             self.session.commit()
 
-    def update_server(self, guild_id, **kwargs):
+    def update_server(self, guild_id, server: Server):
         server = self.session.query(Server).filter_by(guild_id=guild_id).first()
         if server:
-            for key, value in kwargs.items():
-                setattr(server, key, value)
+            server.api_id = server.api_id
+            server.channel_id = server.channel_id
             self.session.commit()
 
     def delete_server(self, guild_id):
@@ -65,7 +68,7 @@ class DataBase:
             self.session.delete(scoreboard)
             self.session.commit()
 
-    def update_hint(self, guild_id: str, day_id:str, hintNew: Hint):
+    def update_hint(self, guild_id: str, day_id: str, hintNew: Hint):
         hint = self.session.query(Hint).filter_by(guild_id=guild_id, day_id=day_id).first()
         if hint:
             hint.puzzle1 = hintNew.puzzle1
@@ -114,8 +117,8 @@ class DataBase:
     def get_server(self, guild_id: str) -> Type[Server] | None:
         return self.session.query(Server).filter_by(guild_id=guild_id).first()
 
-    def get_scoreboard(self, api_id: str) -> Type[ScoreBoard] | None:
-        return self.session.query(ScoreBoard).filter_by(api_id=api_id).first()
+    def get_scoreboard(self, api_id: str, owner_id: str) -> Type[ScoreBoard] | None:
+        return self.session.query(ScoreBoard).filter_by(api_id=api_id, owner_id=owner_id).first()
 
     def get_hint(self, guild_id: str, day_id: str) -> Type[Hint] | None:
         return self.session.query(Hint).filter_by(guild_id=guild_id, day_id=day_id).first()
@@ -165,3 +168,15 @@ class DataBase:
 
     def get_all_server_with_api(self) -> [Server]:
         return self.session.query(Server).filter(Server.api_id.isnot(None)).all()
+
+    def get_adventname_by_discord_id(self, discord_id: str) -> str:
+        users = self.session.query(User).filter_by(discord_id=discord_id).first()
+        if users:
+            return str(users.adventname)
+        return discord_id
+
+    def get_nickname_by_adventname(self, adventname: str) -> str:
+        users = self.session.query(User).filter_by(adventname=adventname).first()
+        if users:
+            return str(users.nickname)
+        return ""

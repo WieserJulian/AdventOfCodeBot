@@ -1,6 +1,6 @@
-from sqlalchemy import create_engine, Column, Integer, String, Boolean, ForeignKey, Text
+from sqlalchemy import Column, String, Boolean, ForeignKey
 from sqlalchemy.ext.declarative import declarative_base
-from sqlalchemy.orm import sessionmaker, relationship
+from sqlalchemy.orm import relationship
 
 Base = declarative_base()
 
@@ -12,6 +12,7 @@ class User(Base):
     adventname = Column(String)
     shouldremind = Column(Boolean)
 
+
 class Server(Base):
     __tablename__ = 'SERVER'
     guild_id = Column(String, primary_key=True)
@@ -19,20 +20,23 @@ class Server(Base):
     api_id = Column(String)
     owner_id = Column(String)
 
+
 class ScoreBoard(Base):
     __tablename__ = 'SCOREBOARD'
     api_id = Column(String, primary_key=True)
     cookie_value = Column(String)
     owner_id = Column(String)
-    json_content = Column(Text)
-    last_refresh = Column(Text)
+    json_content = Column(String)
+    last_refresh = Column(String)
+
 
 class Hint(Base):
     __tablename__ = 'HINT'
     guild_id = Column(String, primary_key=True)
     day_id = Column(String, primary_key=True)
-    puzzle1 = Column(Text)
-    puzzle2 = Column(Text)
+    puzzle1 = Column(String)
+    puzzle2 = Column(String)
+
 
 class EventDay(Base):
     __tablename__ = 'EVENTDAY'
@@ -42,6 +46,7 @@ class EventDay(Base):
     title = Column(String)
     description = Column(String)
     has_been_send = Column(Boolean, default=False)
+
 
 class AdventTable(Base):
     __tablename__ = 'ADVENTTABLE'
