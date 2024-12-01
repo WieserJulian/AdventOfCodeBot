@@ -72,15 +72,15 @@ async def toggle_reminder(ctx: interactions.SlashContext):
 
 @interactions.slash_command(name="leaderboard", description="Get the private leaderboard")
 async def leaderboard(ctx: interactions.SlashContext):
-    if database.check_server(str(ctx.guild.id)):
+    if database.check_server_has_api(str(ctx.guild.id)):
         server = database.get_server(str(ctx.guild.id))
-        if server.api_id is not None:
-            scoreBoard = database.get_scoreboard(server.api_id)
-            content_json = json.loads(scoreBoard.json_content)
-            paginator = gen_leaderboard(content_json, database, client=bot, discord_id=str(ctx.author.id),
-                                        last_changed=scoreBoard.last_refresh)
-            await paginator.send(ctx)
-            return
+        scoreBoard = database.get_scoreboard(server.api_id, server.owner_id)
+        content_json = json.loads(scoreBoard.json_content.replace("'","\""))
+        paginator = gen_leaderboard(content_json, database, client=bot, discord_id=str(ctx.author.id),
+                                    last_changed=scoreBoard.last_refresh)
+        await paginator.send(ctx)
+        return
+
     await ctx.send("There was no leaderboard. You might want to ask your admin to create one", ephemeral=True)
 
 
@@ -221,14 +221,14 @@ async def set_leaderboard(ctx: interactions.SlashContext, owner_id: str, cookie:
             server = database.get_server(guild_id=guild_id)
             server.owner_id = owner_id
             server.api_id = cookie
-            database.update_server(server)
+            database.update_server(guild_id, server)
             s = requests.session()
             cookie_obj = requests.cookies.create_cookie(domain=".adventofcode.com", name="session", value=cookie)
             s.cookies.set_cookie(cookie_obj)
             content = s.get(
                 base_url + r"/{}/leaderboard/private/view/{}.json".format(str(year), str(owner_id))).content.decode()
-            content_json = json.loads(content)
-            scoreboard = ScoreBoard(api_id=owner_id, cookie_value=cookie, json_content=content_json,
+            content_json = str(json.loads(content))
+            scoreboard = ScoreBoard(api_id=server.api_id, owner_id=owner_id, cookie_value=cookie, json_content=content_json,
                                     last_refresh=datetime.datetime.now().strftime("%Y.%m.%d %H:%M"))
             database.add_record(scoreboard)
             await ctx.send("Your leaderboard has been set", ephemeral=True)
@@ -277,8 +277,8 @@ async def daily():
                     await channel.send("@here" if i == 0 else "", embeds=embed)
                 return
             await channel.send("@here", embeds=embeds)
-    for user_id in users:
-        user = await bot.fetch_user(user_id)
+    for loadedUser in users:
+        user = await bot.fetch_user(str(loadedUser.discord_id))
         for message in messages:
             message = AdventOfCodeDay.from_event_day(message)
             embedhandler = AdventOfCodeEmbedHandler(message)
@@ -295,15 +295,15 @@ async def daily():
 async def update_scoreboard():
     servers = database.get_all_server_with_api()
     for server in servers:
-        scoreboard = database.get_scoreboard(server.api_id)
+        scoreboard = database.get_scoreboard(server.api_id, server.owner_id)
         s = requests.session()
         cookie_obj = requests.cookies.create_cookie(domain=".adventofcode.com", name="session",
                                                     value=scoreboard.cookie_value)
         s.cookies.set_cookie(cookie_obj)
         content = s.get(
             base_url + r"/{}/leaderboard/private/view/{}.json".format(str(year), str(server.owner_id))).content.decode()
-        content_json = json.loads(content)
-        scoreboard = ScoreBoard(api_id=server.api_id, cookie_value=scoreboard.cookie_value, json_content=content_json,
+        content_json = str(json.loads(content))
+        scoreboard = ScoreBoard(api_id=server.api_id, owner_id=server.owner_id,  cookie_value=scoreboard.cookie_value, json_content=content_json,
                                 last_refresh=datetime.datetime.now().strftime("%Y.%m.%d %H:%M"))
         database.update_scoreboard(server.api_id, scoreboard)
     pass

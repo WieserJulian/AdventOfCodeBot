@@ -10,11 +10,11 @@ class AdventOfCodeDay:
         self.description = description
 
     def to_event_day(self)->EventDay:
-        return EventDay(day_id=self.day_id,year=self.year, title=self.title, description=self.description)
+        return EventDay(day_id=self.day_id,year=self.year,link=self.link, title=self.title, description=self.description)
 
     @staticmethod
     def from_event_day(event_day:EventDay):
-        return AdventOfCodeDay(day_id=event_day.day_id, year=event_day.year, link="", title=event_day.title, description=event_day.description)
+        return AdventOfCodeDay(day_id=event_day.day_id, year=event_day.year, link=event_day.link, title=event_day.title, description=event_day.description)
 
     def __str__(self) -> str:
         return f"AdventOfCodeDay(day={self.day_id}, link={self.link})"

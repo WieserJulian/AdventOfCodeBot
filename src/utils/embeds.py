@@ -4,6 +4,8 @@ import interactions
 from interactions import EmbedFooter
 from interactions.ext.paginators import Paginator
 
+from src.utils.database import DataBase
+
 today = datetime.date.today()
 year = today.year
 
@@ -37,7 +39,7 @@ def gen_welcome(message: str):
     return embed
 
 
-def gen_leaderboard(message, database, client, discord_id, last_changed):
+def gen_leaderboard(message, database: DataBase, client, discord_id, last_changed):
     fields = _generate_fields_by_json(message)
     adventname = database.get_adventname_by_discord_id(discord_id)
 
